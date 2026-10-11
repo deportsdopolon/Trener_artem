@@ -39,7 +39,7 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto("http://localhost:4175");
+    await page.goto("http://localhost:4175/Trener_artem/");
     await page.getByRole("heading", { name: "Ваша неделя" }).waitFor();
     await page
       .getByRole("button", { name: "Добавить занятие", exact: true })

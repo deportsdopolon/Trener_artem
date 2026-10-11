@@ -1,20 +1,26 @@
-const CACHE = "tonus-v1";
+const CACHE = "tonus-v2";
+const BASE = self.registration.scope;
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE);
-      const response = await fetch("/");
+      const response = await fetch(BASE);
       if (!response.ok) throw new Error("App shell unavailable");
       const html = await response.text();
       const assets = [...html.matchAll(/(?:src|href)="([^"\s]+)"/g)]
         .map((m) => m[1])
-        .filter((url) => url.startsWith("/") && !url.includes("manifest"));
+        .filter(
+          (url) =>
+            (url.startsWith(BASE) || url.startsWith("/Trener_artem/")) &&
+            !url.includes("manifest"),
+        );
       await cache.addAll([
         ...new Set([
-          "/",
-          "/manifest.webmanifest",
-          "/icon-192.png",
-          "/icon-512.png",
+          BASE,
+          `${BASE}manifest.webmanifest`,
+          `${BASE}icon-192.png`,
+          `${BASE}icon-512.png`,
           ...assets,
         ]),
       ]);
@@ -22,6 +28,7 @@ self.addEventListener("install", (event) => {
     })(),
   );
 });
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
@@ -32,6 +39,7 @@ self.addEventListener("activate", (event) => {
     })(),
   );
 });
+
 self.addEventListener("fetch", (event) => {
   if (
     event.request.method !== "GET" ||
@@ -46,7 +54,7 @@ self.addEventListener("fetch", (event) => {
           const response = await fetch(event.request);
           if (response.ok) return response;
         } catch {}
-        return (await cache.match("/")) || Response.error();
+        return (await cache.match(BASE)) || Response.error();
       }
       const saved = await cache.match(event.request);
       if (saved) return saved;

@@ -1,0 +1,37 @@
+{
+  "name": "trener_artem",
+  "version": "1.0.0",
+  "description": "\u041f\u0440\u043e\u0435\u043a\u0442 Trener_artem.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test:e2e": "npm run build && node tests/e2e.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deportsdopolon/Trener_artem.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/deportsdopolon/Trener_artem/issues"
+  },
+  "homepage": "https://github.com/deportsdopolon/Trener_artem#readme",
+  "dependencies": {
+    "lucide-react": "^1.55.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "playwright": "^1.64.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}

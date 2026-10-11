@@ -12,7 +12,7 @@ self.addEventListener("install", (event) => {
         .map((m) => m[1])
         .filter(
           (url) =>
-            (url.startsWith(BASE) || url.startsWith("/Trener_artem/")) &&
+            (url.startsWith(BASE) || url.startsWith("/trener_artem/")) &&
             !url.includes("manifest"),
         );
       await cache.addAll([

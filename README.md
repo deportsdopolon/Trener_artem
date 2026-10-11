@@ -2,7 +2,7 @@
 
 Веб-приложение (PWA): открываете в Safari и добавляете на экран «Домой» — работает как обычное приложение. Данные хранятся **только на iPhone** (localStorage), не на сервере.
 
-**Основная ссылка:** https://deportsdopolon.github.io/Trener_artem/
+**Основная ссылка:** https://deportsdopolon.github.io/trener_artem/
 
 ## Установка на iPhone
 

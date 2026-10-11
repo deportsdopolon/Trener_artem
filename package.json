@@ -11,16 +11,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deportsdopolon/Trener_artem.git"
+    "url": "git+https://github.com/deportsdopolon/trener_artem.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/deportsdopolon/Trener_artem/issues"
+    "url": "https://github.com/deportsdopolon/trener_artem/issues"
   },
-  "homepage": "https://github.com/deportsdopolon/Trener_artem#readme",
+  "homepage": "https://github.com/deportsdopolon/trener_artem#readme",
   "dependencies": {
     "lucide-react": "^1.55.0",
     "react": "^19.3.0",

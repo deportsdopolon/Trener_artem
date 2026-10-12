@@ -13,6 +13,7 @@ import {
   Check,
   Pencil,
   Search,
+  Ruler,
 } from "lucide-react";
 
 type Client = { id: string; name: string };
@@ -26,7 +27,39 @@ type Session = {
   focus: string;
   entries: Entry[];
 };
+const measurementFields = [
+  ["arms", "Руки", "см"],
+  ["waist", "Талия", "см"],
+  ["hips", "Ягодицы", "см"],
+  ["legs", "Ноги", "см"],
+  ["shoulders", "Плечи", "см"],
+  ["weight", "Вес", "кг"],
+] as const;
+type MeasurementValues = Record<(typeof measurementFields)[number][0], string>;
+type Measurement = {
+  id: string;
+  clientId: string;
+  recordedAt: string;
+  values: MeasurementValues;
+};
+const emptyMeasurements = (): MeasurementValues => ({
+  arms: "",
+  waist: "",
+  hips: "",
+  legs: "",
+  shoulders: "",
+  weight: "",
+});
+const measurementDate = (value: string) =>
+  new Date(value).toLocaleString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 type Data = {
+  measurements: Measurement[];
   clients: Client[];
   slots: Slot[];
   exercises: Exercise[];
@@ -48,10 +81,14 @@ const initial = (): Data => {
           Array.isArray(d[k]),
         )
       )
-        return d;
+        return {
+          ...d,
+          measurements: Array.isArray(d.measurements) ? d.measurements : [],
+        };
     }
   } catch {}
   return {
+    measurements: [],
     clients: [],
     slots: [],
     sessions: [],
@@ -87,7 +124,7 @@ export default function App() {
     date: string;
   } | null>(null);
   const [modal, setModal] = useState<
-    "slot" | "client" | "exercise" | "picker" | null
+    "slot" | "client" | "exercise" | "picker" | "measurements" | null
   >(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -96,14 +133,19 @@ export default function App() {
   const [time, setTime] = useState("10:00");
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [measurementValues, setMeasurementValues] =
+    useState<MeasurementValues>(emptyMeasurements);
+  const [measurementError, setMeasurementError] = useState("");
   const [history, setHistory] = useState(false);
   const save = (next: Data) => {
     try {
       localStorage.setItem(key, JSON.stringify(next));
       setData(next);
       setError("");
+      return true;
     } catch {
       setError("Не удалось сохранить. Возможно, память устройства заполнена.");
+      return false;
     }
   };
   const close = () => {
@@ -142,12 +184,15 @@ export default function App() {
       entries: session.entries.map((e) => (e.id === entry.id ? entry : e)),
     });
   const removeClient = (id: string) => {
-    if (confirm("Удалить клиента, его расписание и историю тренировок?"))
+    if (
+      confirm("Удалить клиента, его расписание, историю тренировок и замеры?")
+    )
       save({
         ...data,
         clients: data.clients.filter((c) => c.id !== id),
         slots: data.slots.filter((s) => s.clientId !== id),
         sessions: data.sessions.filter((s) => s.clientId !== id),
+        measurements: data.measurements.filter((m) => m.clientId !== id),
       });
   };
   const submit = (e: React.FormEvent) => {
@@ -195,6 +240,62 @@ export default function App() {
         .filter((s) => s.clientId === active.clientId && s.date < active.date)
         .sort((a, b) => b.date.localeCompare(a.date))
     : [];
+  const clientMeasurements = active
+    ? data.measurements
+        .filter((m) => m.clientId === active.clientId)
+        .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
+    : [];
+  const openMeasurements = () => {
+    setMeasurementValues({
+      ...emptyMeasurements(),
+      ...clientMeasurements[0]?.values,
+    });
+    setMeasurementError("");
+    setModal("measurements");
+  };
+  const saveMeasurements = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!active) return;
+    const values = emptyMeasurements();
+    for (const [field] of measurementFields) {
+      const value = measurementValues[field].trim().replace(",", ".");
+      if (
+        value &&
+        (!/^\d+(?:\.\d+)?$/.test(value) ||
+          !Number.isFinite(Number(value)) ||
+          Number(value) <= 0)
+      ) {
+        setMeasurementError(
+          "Введите положительные числа с запятой или точкой.",
+        );
+        return;
+      }
+      values[field] = value ? String(Number(value)) : "";
+    }
+    if (!Object.values(values).some(Boolean)) {
+      setMeasurementError("Заполните хотя бы один замер.");
+      return;
+    }
+    if (
+      save({
+        ...data,
+        measurements: [
+          ...data.measurements,
+          {
+            id: uid(),
+            clientId: active.clientId,
+            recordedAt: new Date().toISOString(),
+            values,
+          },
+        ],
+      })
+    )
+      close();
+    else
+      setMeasurementError(
+        "Не удалось сохранить. Проверьте свободное место и попробуйте ещё раз.",
+      );
+  };
   const openSession = (id: string, day: string) => {
     setActive({ clientId: id, date: day });
     setHistory(false);
@@ -227,7 +328,12 @@ export default function App() {
             {formatDate(active.date)} ·{" "}
             {weekDays[(parseDate(active.date).getDay() + 6) % 7]}
           </div>
-          <h1>{data.clients.find((c) => c.id === active.clientId)?.name}</h1>
+          <div className="client-heading">
+            <button className="measurements-button" onClick={openMeasurements}>
+              <Ruler size={18} /> Замеры
+            </button>
+            <h1>{data.clients.find((c) => c.id === active.clientId)?.name}</h1>
+          </div>
           <div className="segmented">
             <button
               className={!history ? "selected" : ""}
@@ -757,19 +863,21 @@ export default function App() {
             <div className="handle" />
             <div className="section-title">
               <h2 id="modal-title">
-                {modal === "slot"
-                  ? editId
-                    ? "Изменить занятие"
-                    : "Новое занятие"
-                  : modal === "picker"
-                    ? "Выберите упражнение"
-                    : modal === "client"
-                      ? editId
-                        ? "Изменить клиента"
-                        : "Новый клиент"
-                      : editId
-                        ? "Изменить упражнение"
-                        : "Новое упражнение"}
+                {modal === "measurements"
+                  ? "Замеры клиента"
+                  : modal === "slot"
+                    ? editId
+                      ? "Изменить занятие"
+                      : "Новое занятие"
+                    : modal === "picker"
+                      ? "Выберите упражнение"
+                      : modal === "client"
+                        ? editId
+                          ? "Изменить клиента"
+                          : "Новый клиент"
+                        : editId
+                          ? "Изменить упражнение"
+                          : "Новое упражнение"}
               </h2>
               <button
                 className="icon-button"
@@ -779,7 +887,78 @@ export default function App() {
                 <X />
               </button>
             </div>
-            {modal === "picker" ? (
+            {modal === "measurements" ? (
+              <>
+                <p className="muted">
+                  {data.clients.find((c) => c.id === active?.clientId)?.name}
+                </p>
+                <p className="muted">
+                  {clientMeasurements[0]
+                    ? `Последнее обновление: ${measurementDate(clientMeasurements[0].recordedAt)}`
+                    : "Замеров пока нет. Обхваты — в сантиметрах, вес — в килограммах."}
+                </p>
+                <form onSubmit={saveMeasurements}>
+                  <div className="measurement-grid">
+                    {measurementFields.map(([field, label, unit]) => (
+                      <label key={field}>
+                        {label}, {unit}
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
+                          placeholder="Например, 35,5"
+                          value={measurementValues[field]}
+                          onChange={(e) =>
+                            setMeasurementValues({
+                              ...measurementValues,
+                              [field]: e.target.value,
+                            })
+                          }
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  {measurementError && (
+                    <p role="alert" className="error">
+                      {measurementError}
+                    </p>
+                  )}
+                  <button className="primary submit" type="submit">
+                    <Check size={18} /> Сохранить замеры
+                  </button>
+                  <p className="muted">
+                    Сохранение добавляет новую запись с текущей датой. Пустые
+                    поля можно оставить незаполненными.
+                  </p>
+                </form>
+                <h3>История замеров</h3>
+                {clientMeasurements.length === 0 ? (
+                  <p className="muted">История появится после сохранения.</p>
+                ) : (
+                  <ol className="measurement-history">
+                    {clientMeasurements.map((m) => (
+                      <li className="card" key={m.id}>
+                        <time dateTime={m.recordedAt}>
+                          {measurementDate(m.recordedAt)}
+                        </time>
+                        <dl>
+                          {measurementFields.map(([field, label, unit]) => (
+                            <div key={field}>
+                              <dt>{label}</dt>
+                              <dd>
+                                {m.values[field]
+                                  ? `${m.values[field].replace(".", ",")} ${unit}`
+                                  : "—"}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </>
+            ) : modal === "picker" ? (
               <>
                 <div className="search">
                   <Search size={18} />

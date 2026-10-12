@@ -773,3 +773,57 @@ nav .active {
     }
   }
 }
+
+.client-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.client-heading h1 {
+  min-width: 0;
+  flex: 1;
+}
+.measurements-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border: 1px solid #596344;
+  border-radius: 14px;
+  background: #2a3223;
+  color: var(--accent);
+  font-size: 14px;
+}
+.measurement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+.measurement-history {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+.measurement-history time {
+  color: var(--accent);
+  font-size: 13px;
+}
+.measurement-history dl {
+  margin: 12px 0 0;
+}
+.measurement-history dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.measurement-history dt {
+  color: var(--muted);
+}
+.measurement-history dd {
+  margin: 0;
+}

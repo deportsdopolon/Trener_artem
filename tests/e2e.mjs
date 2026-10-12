@@ -39,7 +39,7 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto("http://localhost:4175/Trener_artem/");
+    await page.goto("http://localhost:4175/trener_artem/");
     await page.getByRole("heading", { name: "Ваша неделя" }).waitFor();
     await page
       .getByRole("button", { name: "Добавить занятие", exact: true })
@@ -48,6 +48,95 @@ try {
     await page.getByLabel("Дата", { exact: true }).fill(dayKey(first));
     await page.getByRole("button", { name: "Сохранить", exact: true }).click();
     await page.getByRole("button", { name: /10:00 Иванова/ }).click();
+    // Simulate existing v1 data without measurements; migration must preserve it.
+    await page.evaluate(() => {
+      const data = JSON.parse(localStorage.getItem("tonus-data-v1"));
+      delete data.measurements;
+      localStorage.setItem("tonus-data-v1", JSON.stringify(data));
+    });
+    await page.reload();
+    await page.getByRole("button", { name: /10:00 Иванова/ }).click();
+    await page.getByRole("button", { name: "Замеры", exact: true }).click();
+    const measurements = page.getByRole("dialog", { name: "Замеры клиента" });
+    await measurements
+      .getByRole("button", { name: "Сохранить замеры" })
+      .click();
+    await measurements.getByText("Заполните хотя бы один замер.").waitFor();
+    for (const [label, value] of [
+      ["Руки, см", "32,5"],
+      ["Талия, см", "70.2"],
+      ["Ягодицы, см", "95"],
+      ["Ноги, см", "55"],
+      ["Плечи, см", "100"],
+      ["Вес, кг", "62,4"],
+    ]) {
+      await measurements.getByLabel(label, { exact: true }).fill(value);
+    }
+    await measurements.getByLabel("Вес, кг", { exact: true }).fill("-1");
+    await measurements
+      .getByRole("button", { name: "Сохранить замеры" })
+      .click();
+    await measurements
+      .getByText("Введите положительные числа с запятой или точкой.")
+      .waitFor();
+    await measurements.getByLabel("Вес, кг", { exact: true }).fill("62,4");
+    // A storage failure must keep the form open and retain the entered values.
+    await page.evaluate(() => {
+      window.originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = () => {
+        throw new Error("Quota exceeded");
+      };
+    });
+    await measurements
+      .getByRole("button", { name: "Сохранить замеры" })
+      .click();
+    await measurements.getByRole("alert").waitFor();
+    assert.equal(
+      await measurements.getByLabel("Вес, кг", { exact: true }).inputValue(),
+      "62,4",
+    );
+    await page.evaluate(() => {
+      Storage.prototype.setItem = window.originalSetItem;
+    });
+    await measurements
+      .getByRole("button", { name: "Сохранить замеры" })
+      .click();
+    await page.reload();
+    await page.getByRole("button", { name: /10:00 Иванова/ }).click();
+    await page.getByRole("button", { name: "Замеры", exact: true }).click();
+    assert.equal(
+      await measurements.getByLabel("Руки, см", { exact: true }).inputValue(),
+      "32.5",
+    );
+    assert.equal(
+      await measurements.getByLabel("Вес, кг", { exact: true }).inputValue(),
+      "62.4",
+    );
+    await measurements.getByLabel("Вес, кг", { exact: true }).fill("61.8");
+    await measurements
+      .getByRole("button", { name: "Сохранить замеры" })
+      .click();
+    await page.getByRole("button", { name: "Замеры", exact: true }).click();
+    assert.equal(
+      await measurements.locator(".measurement-history li").count(),
+      2,
+    );
+    await measurements.getByText("62,4 кг", { exact: true }).waitFor();
+    await measurements.getByText("61,8 кг", { exact: true }).waitFor();
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+      390,
+    );
+    const storedMeasurements = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("tonus-data-v1")).measurements,
+    );
+    assert.equal(storedMeasurements.length, 2);
+    assert.ok(
+      storedMeasurements.every(
+        (m) => m.clientId && Number.isFinite(Date.parse(m.recordedAt)),
+      ),
+    );
+    await measurements.getByRole("button", { name: "Закрыть" }).click();
     await page.getByLabel("ФОКУС ДНЯ").fill("Спина и руки");
     await page.getByRole("button", { name: /Добавить упражнение/ }).click();
     await page
@@ -115,6 +204,22 @@ try {
     await page.getByRole("button", { name: "Переименовать Иванова" }).click();
     await page.getByLabel("Фамилия / имя").fill("Иванова Анна");
     await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+    await page.getByRole("button", { name: "Добавить", exact: true }).click();
+    await page.getByLabel("Фамилия / имя").fill("Петров");
+    await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+    await page
+      .getByRole("button", { name: /Петров Открыть тренировку/ })
+      .click();
+    await page.getByRole("button", { name: "Замеры", exact: true }).click();
+    assert.equal(
+      await measurements.getByLabel("Вес, кг", { exact: true }).inputValue(),
+      "",
+    );
+    assert.equal(
+      await measurements.locator(".measurement-history li").count(),
+      0,
+    );
+    await measurements.getByRole("button", { name: "Закрыть" }).click();
     await page.getByRole("button", { name: "Неделя", exact: true }).click();
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth),
@@ -135,6 +240,15 @@ try {
       await page.getByLabel("Вес подхода 1", { exact: true }).inputValue(),
       "40",
     );
+    await page.getByRole("button", { name: "Замеры", exact: true }).click();
+    assert.equal(
+      await measurements.getByLabel("Вес, кг", { exact: true }).inputValue(),
+      "61.8",
+    );
+    await measurements.getByLabel("Вес, кг", { exact: true }).fill("61,5");
+    await measurements
+      .getByRole("button", { name: "Сохранить замеры" })
+      .click();
     await page
       .getByRole("button", { name: "Удалить подход", exact: true })
       .last()
@@ -168,9 +282,16 @@ try {
       ),
       0,
     );
+    assert.equal(
+      await page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("tonus-data-v1")).measurements.length,
+      ),
+      0,
+    );
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: CRUD, sets, history, persistence, 390px layout, offline reload, cascading delete; no browser errors",
+      "PASS: measurements, migration, validation, storage failure, client isolation, CRUD, sets, history, persistence, 390px layout, offline reload, cascading delete; no browser errors",
     );
   } finally {
     await browser?.close();

@@ -1,4 +1,4 @@
-const CACHE = "tonus-v2";
+const CACHE = "tonus-v3";
 const BASE = self.registration.scope;
 
 self.addEventListener("install", (event) => {
